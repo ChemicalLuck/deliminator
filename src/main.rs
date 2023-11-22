@@ -1,69 +1,48 @@
-use csv::{ReaderBuilder, WriterBuilder};
-use std::{error::Error, path::PathBuf};
+mod cli;
+mod paths;
+mod records;
 
-fn parse_args() -> Result<(PathBuf, usize), Box<dyn Error>> {
-    let args: Vec<String> = std::env::args().collect();
+use clap::Parser;
+use csv::StringRecord;
+use rayon::prelude::*;
 
-    if args.len() != 3 {
-        return Err("Usage: split_csv <csv_path> <num_files>".into());
-    }
+use cli::{Cli, Commands};
+use paths::{create_output_directory, determine_output_path, generate_output_path};
+use records::{load_records, write_records_to_csv};
 
-    let csv_path = PathBuf::from(&args[1]);
-    let num_files = args[2].parse::<usize>()?;
-
-    Ok((csv_path, num_files))
-}
-
-fn main() -> Result<(), Box<dyn Error>> {
-    let args = parse_args()?;
-
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let cli = Cli::parse();
     let start = std::time::Instant::now();
 
-    let csv_path = args.0;
-    let num_files = args.1;
-
-    println!("Spliting {} into {} files", csv_path.display(), num_files);
-
-    let mut records = ReaderBuilder::new()
-        .has_headers(false)
-        .from_path(&csv_path)?
-        .records()
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut records = load_records(&cli)?;
 
     let header = records.remove(0);
     let num_records = records.len();
 
-    println!("Number of records: {}", num_records);
+    let records_per_file = match &cli.command {
+        Commands::Chunks(args) => args.chunks,
+        Commands::Files(args) => num_records / args.files,
+    };
 
-    let records_per_file = num_records / num_files;
+    let output = determine_output_path(&cli, &records_per_file)?;
 
-    println!("Records per file: {}", records_per_file);
+    create_output_directory(&output)?;
 
-    let chunks = records.chunks(records_per_file);
+    let chunks: Vec<&[StringRecord]> = records.chunks(records_per_file).collect();
 
-    // Refactor this to a function
-    for (i, chunk) in chunks.enumerate() {
-        let output_name = format!(
-            "{}_part{}.csv",
-            csv_path.file_stem().unwrap().to_str().unwrap(),
-            i
-        );
+    let progress_bar = indicatif::ProgressBar::new(chunks.len() as u64);
 
-        let output_path = csv_path.with_file_name(&output_name);
+    chunks.par_iter().enumerate().for_each(|(i, chunk)| {
+        let output_path = generate_output_path(&output, &cli.csv_path, i).unwrap();
+        write_records_to_csv(&header, chunk, &output_path).unwrap();
+        progress_bar.inc(1);
+    });
 
-        let mut csv_writer = WriterBuilder::new()
-            .has_headers(true)
-            .from_path(output_path)?;
-
-        csv_writer.write_record(&header)?;
-        for record in chunk {
-            csv_writer.write_record(record)?;
-        }
-        println!("Wrote {} records to {}", chunk.len(), output_name);
-    }
+    progress_bar.finish();
 
     let duration = start.elapsed();
-    println!("Completed in {} seconds", duration.as_secs());
+    println!("Results written to: {}", output.display());
+    println!("Completed in {} milliseconds", duration.as_millis());
 
     Ok(())
 }
