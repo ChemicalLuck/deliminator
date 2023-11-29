@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let start = std::time::Instant::now();
 
-    let mut records = load_records(&cli)?;
+    let mut records = load_records(&cli.csv_path)?;
 
     let header = records.remove(0);
     let num_records = records.len();
@@ -24,7 +24,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Files(args) => num_records / args.files,
     };
 
-    let output = determine_output_path(&cli, &records_per_file)?;
+    let output = determine_output_path(
+        &cli.output,
+        cli.csv_path.file_stem().unwrap(),
+        &cli.command.name(),
+        &records_per_file,
+    )?;
 
     create_output_directory(&output)?;
 

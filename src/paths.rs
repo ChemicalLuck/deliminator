@@ -1,28 +1,23 @@
 use std::{
+    ffi::OsStr,
     fs,
     path::{Path, PathBuf},
 };
 
-use crate::cli::Cli;
-
 pub fn determine_output_path(
-    cli: &Cli,
+    output: &Option<PathBuf>,
+    path: &OsStr,
+    command: &str,
     records_per_file: &usize,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let default_output_path = dirs::home_dir()
         .map(|p| p.join("Documents/csv-split"))
         .unwrap_or_else(|| PathBuf::from("~"));
 
-    let output_path = cli
-        .output
+    let output_path = output
         .clone()
         .unwrap_or_else(|| default_output_path)
-        .join(format!(
-            "{}_{}_{}/",
-            cli.csv_path.file_stem().unwrap().to_str().unwrap(),
-            cli.command.name(),
-            records_per_file
-        ));
+        .join(format!("{:?}_{}_{}/", path, command, records_per_file));
 
     Ok(output_path)
 }

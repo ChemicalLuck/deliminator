@@ -2,12 +2,12 @@ use std::path::Path;
 
 use csv::{ReaderBuilder, StringRecord, WriterBuilder};
 
-use crate::cli::Cli;
-
-pub fn load_records(cli: &Cli) -> Result<Vec<StringRecord>, Box<dyn std::error::Error + 'static>> {
+pub fn load_records(
+    path: &Path,
+) -> Result<Vec<StringRecord>, Box<dyn std::error::Error + 'static>> {
     Ok(ReaderBuilder::new()
         .has_headers(false)
-        .from_path(&cli.csv_path)?
+        .from_path(path)?
         .records()
         .collect::<Result<Vec<_>, _>>()?)
 }
@@ -22,9 +22,11 @@ pub fn write_records_to_csv(
         .from_path(output_path)?;
 
     csv_writer.write_record(header)?;
+
     for record in chunk {
         csv_writer.write_record(record)?;
     }
 
+    csv_writer.flush()?;
     Ok(())
 }
