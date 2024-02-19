@@ -19,6 +19,7 @@ pub struct Cli {
 pub enum Commands {
     Chunks(ChunksCommand),
     Files(FilesCommand),
+    Concat(ConcatCommand),
 }
 
 impl Commands {
@@ -26,6 +27,7 @@ impl Commands {
         match &self {
             Commands::Chunks(_) => "chunks".to_string(),
             Commands::Files(_) => "files".to_string(),
+            Commands::Concat(_) => "concat".to_string(),
         }
     }
 }
@@ -38,4 +40,9 @@ pub struct ChunksCommand {
 #[derive(Args)]
 pub struct FilesCommand {
     pub files: usize,
+}
+
+#[derive(Args)]
+pub struct ConcatCommand {
+    pub other: Vec<PathBuf>,
 }

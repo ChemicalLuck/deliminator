@@ -17,7 +17,12 @@ pub fn determine_output_path(
     let output_path = output
         .clone()
         .unwrap_or_else(|| default_output_path)
-        .join(format!("{:?}_{}_{}/", path, command, records_per_file));
+        .join(format!(
+            "{}_{}_{}/",
+            path.to_str().unwrap(),
+            command,
+            records_per_file
+        ));
 
     Ok(output_path)
 }
